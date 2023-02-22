@@ -1,0 +1,38 @@
+---
+title: "HipFractureEDA"
+output: pdf_document
+date: "2023-02-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(haven)
+library(dplyr)
+library(ggplot2)
+```
+
+#Loading Data 
+```{r cars}
+hip_fracture_df = read_sav('../Analysis/Data/HipFractureQualityData.sav')
+```
+
+
+```{r cars}
+#first off lets get a summary of the data to see what is missing. We want to look more closely at the encoded columns (Starting at Gender = 1) since we would not expect NA's here
+options(max.print = 4000)
+summary(hip_fracture_df)
+
+#it looks like there are no NA's being displayed - it may be mis- encoding them when we read in the data
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

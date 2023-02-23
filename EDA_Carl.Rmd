@@ -95,7 +95,8 @@ Race_bar <- ggplot(RACE_df, aes(x = Race, y = percentage, fill = Race)) +
   scale_y_continuous(labels=scales::percent) +
   labs(title="Race Distribution", y = "Percentage") +
   geom_text(aes(label = labels), nudge_y = 0.125, angle = -15) +
-  theme(axis.text.x = element_text(angle = -30, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = -30, hjust = 0.5)) +
+  theme(plot.title = element_text(hjust = 0.5))
 ggsave("Race_Barchart.png", plot = Race_bar)
 ```
 
@@ -193,7 +194,7 @@ agg_df_rad <- setNames(aggregate(df2$RACE_NEW, by=list(df2$RACE_NEW,df2$READMISS
 
 race_read <- ggplot(agg_df_rad, aes(x = Race, fill = Readmission))+
   geom_bar(mapping = aes(x = Race, y = Counts, fill = Readmission), stat = "identity", position = "fill")+
-  labs(title="Readmissions of patients with differnt sex and age", x = "Race", y = "Relative Proportion of Readmissions") +
+  labs(title="Readmissions of patients with differnt race", x = "Race", y = "Relative Proportion of Readmissions") +
   theme(plot.title = element_text(hjust = 0.5), strip.text = element_text(size=7)) +
   theme(axis.text.x = element_text(angle = -30, hjust = 0.5))
 ggsave("readmit_race.png", plot = race_read)

@@ -16,6 +16,7 @@ library(patchwork)
 library(psych)
 library(tidyverse)
 library(gridExtra)
+library(naniar)
 ```
 
 #Loading Data 
@@ -40,6 +41,8 @@ summary(hip_fracture_df)
 
 #Carl: It seems that the NA data are represented as -99
 
+
+
 ```{r}
 # Deleting irrelavent data from the df
 df <- hip_fracture_df[,!names(hip_fracture_df) %in% c("CASEID")]
@@ -51,6 +54,14 @@ AGE_hist <- ggplot(df2, aes(x=AGE)) +
   labs(title = "Distribution of age", x = "Age", y = "Density") +
   theme(plot.title = element_text(hjust = 0.5))
 ggsave("AGE_Histogram.png", plot = AGE_hist)
+```
+
+```{r}
+df4 <- data.frame(df2)
+df4[df4 == -99] <- NA
+missing <- data.frame(map(df4, ~sum(is.na(.))))
+missing[missing == 0] <- NA
+missing <- missing[ , colSums(is.na(missing))==0]
 ```
 
 ```{r, echo = FALSE}

@@ -8,12 +8,24 @@ date: "2023-02-22"
 knitr::opts_chunk$set(echo = TRUE)
 library(haven)
 library(dplyr)
+library(plyr)
 library(ggplot2)
+library(ggrepel)
+library(corrplot)
+library(patchwork)
+library(psych)
+library(tidyverse)
+library(gridExtra)
 ```
 
 #Loading Data 
 ```{r cars}
-hip_fracture_df = read_sav('../Analysis/Data/HipFractureQualityData.sav')
+# Each of us are saving our data locally (for now at least)
+# To call out the sav file, we need to use different directories.
+
+#hip_fracture_df = read_sav('../Analysis/Data/HipFractureQualityData.sav') # Bruno's Directory
+
+hip_fracture_df = read_sav('/Users/zhixiangyao/Desktop/Spring\ 2023/Intro\ BioMed\ Data\ Sci/Project/BME580_FinalProject/Data/HipFractureQualityData.sav') # Carl's Directory
 ```
 
 
@@ -24,15 +36,135 @@ summary(hip_fracture_df)
 
 #it looks like there are no NA's being displayed - it may be mis- encoding them when we read in the data
 
-
 ```
 
-## Including Plots
+#Carl: It seems that the NA data are represented as -99
 
-You can also embed plots, for example:
+```{r}
+# Deleting irrelavent data from the df
+df <- hip_fracture_df[,!names(hip_fracture_df) %in% c("CASEID")]
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Keep an original df if further operations on the df will be applied.
+df2 <- data.frame(df)
+AGE_hist <- ggplot(df2, aes(x=AGE)) +
+  geom_histogram(binwidth = 5) +
+  labs(title = "Distribution of age", x = "Age", y = "Density") +
+  theme(plot.title = element_text(hjust = 0.5))
+ggsave("AGE_Histogram.png", plot = AGE_hist)
+```
+
+```{r, echo = FALSE}
+df2[sapply(df2, is.character)] <- lapply(df2[sapply(df2, is.character)], as.factor)
+df2[sapply(df2, is.numeric)] <- lapply(df2[sapply(df2, is.numeric)], as.numeric)
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Preprocessing the data by deleting the ID column
+
+```{r}
+head(hip_fracture_df,1) # Have a look at the names of each column
+```
+
+
+
+```{r}
+RACE_df <- data.frame(table(df2['RACE_NEW']))
+names(RACE_df)[names(RACE_df) == 'Var1'] <- 'Race'
+RACE_df <- RACE_df %>%
+  mutate(percentage = `Freq`/sum(`Freq`)) %>%
+  arrange(percentage) %>%
+  mutate(labels = scales::percent(percentage))
+```
+
+```{r}
+Race_bar <- ggplot(RACE_df, aes(x = Race, y = percentage, fill = Race)) +
+  scale_fill_brewer(palette = "Dark2") +
+  geom_bar(stat="identity") +
+  scale_y_continuous(labels=scales::percent) +
+  labs(title="Race Distribution", y = "Percentage") +
+  geom_text(aes(label = labels), nudge_y = 0.125, angle = -15) +
+  theme(axis.text.x = element_text(angle = -30, hjust = 0.5))
+ggsave("Race_Barchart.png", plot = Race_bar)
+```
+
+It maybe more reasonable to give a barchart showing certain complications among different race and sex, and age. For the purpose of our proposal, I will first pull up 4 figures.
+
+CardiacComplications; InfectiousComplications
+
+```{r}
+# For CardiacComplications
+
+agg_df_scr <- setNames(aggregate(df2$SEX, by=list(df2$SEX,df2$RACE_NEW,df2$CardiacComplications), FUN=length),
+                   c("Sex", "Race","CardiacComplications","Counts"))
+
+sex_cardiac_race <- ggplot(agg_df_scr, aes(x = Sex, fill = CardiacComplications))+
+  geom_bar(mapping = aes(x = Sex, y = Counts, fill = CardiacComplications), stat = "identity", position = "fill")+
+  facet_wrap(~Race, ncol = 3, nrow = 3, scales = 'free', labeller = label_wrap_gen(25)) +
+  labs(title="Cardiac Complications of patients with differnt sex and race", x = "Sex", y = "Relative Proportion of Cardiac Complications") +
+  theme(plot.title = element_text(hjust = 0.5), strip.text = element_text(size=7))
+ggsave("Card_sex+race.png", plot = sex_cardiac_race)
+```
+
+
+```{r}
+df3 <- data.frame(df2)
+
+df3$Age_level <- cut(df3$AGE, breaks = c(50,75,85,100), labels=c("Age < 75","75 < Age < 85","Age > 85"))
+
+agg_df_sca <- setNames(aggregate(df3$SEX, by=list(df3$SEX,df3$Age_level,df3$CardiacComplications), FUN=length),
+                   c("Sex", "Age","CardiacComplications","Counts"))
+
+sex_cardiac_age <- ggplot(agg_df_sca, aes(x = Sex, fill = CardiacComplications))+
+  geom_bar(mapping = aes(x = Sex, y = Counts, fill = CardiacComplications), stat = "identity", position = "fill")+
+  facet_wrap(~Age, ncol = 3, nrow = 1, scales = 'free') +
+  labs(title="Cardiac Complications of patients with differnt sex and age", x = "Sex", y = "Relative Proportion of Cardiac Complications") +
+  theme(plot.title = element_text(hjust = 0.5), strip.text = element_text(size=7))
+ggsave("Card_sex+age.png", plot = sex_cardiac_age)
+```
+
+```{r}
+# For CardiacComplications
+
+agg_df_sir <- setNames(aggregate(df2$SEX, by=list(df2$SEX,df2$RACE_NEW,df2$InfectiousComplications), FUN=length),
+                   c("Sex", "Race","InfectiousComplications","Counts"))
+
+sex_infect_race <- ggplot(agg_df_sir, aes(x = Sex, fill = InfectiousComplications))+
+  geom_bar(mapping = aes(x = Sex, y = Counts, fill = InfectiousComplications), stat = "identity", position = "fill")+
+  facet_wrap(~Race, ncol = 3, nrow = 3, scales = 'free', labeller = label_wrap_gen(25)) +
+  labs(title="Infectious Complications of patients with differnt sex and race", x = "Sex", y = "Relative Proportion of Infectious Complications") +
+  theme(plot.title = element_text(hjust = 0.5), strip.text = element_text(size=7))
+ggsave("infect_sex+race.png", plot = sex_infect_race)
+```
+
+
+```{r}
+agg_df_sia <- setNames(aggregate(df3$SEX, by=list(df3$SEX,df3$Age_level,df3$InfectiousComplications), FUN=length),
+                   c("Sex", "Age","InfectiousComplications","Counts"))
+
+sex_infect_age <- ggplot(agg_df_sia, aes(x = Sex, fill = InfectiousComplications))+
+  geom_bar(mapping = aes(x = Sex, y = Counts, fill = InfectiousComplications), stat = "identity", position = "fill")+
+  facet_wrap(~Age, ncol = 3, nrow = 1, scales = 'free') +
+  labs(title="Infectious Complications of patients with differnt sex and age", x = "Sex", y = "Relative Proportion of Infectious Complications") +
+  theme(plot.title = element_text(hjust = 0.5), strip.text = element_text(size=7))
+ggsave("infect_sex+age.png", plot = sex_infect_age)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

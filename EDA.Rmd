@@ -163,6 +163,19 @@ ggsave("infect_sex+age.png", plot = sex_infect_age)
 
 
 
+```{r}
+agg_df_srad <- setNames(aggregate(df2$SEX, by=list(df2$SEX,df2$RACE_NEW,df2$READMISSION1), FUN=length),
+                   c("Sex", "Race","Readmission","Counts"))
+
+sex_race_read <- ggplot(agg_df_srad, aes(x = Sex, fill = Readmission))+
+  geom_bar(mapping = aes(x = Sex, y = Counts, fill = Readmission), stat = "identity", position = "fill")+
+  facet_wrap(~Race, ncol = 3, nrow = 3, scales = 'free') +
+  labs(title="Infectious Complications of patients with differnt sex and age", x = "Sex", y = "Relative Proportion of Infectious Complications") +
+  theme(plot.title = element_text(hjust = 0.5), strip.text = element_text(size=7))
+ggsave("readmit_sex+race.png", plot = sex_race_read)
+```
+
+
 
 
 

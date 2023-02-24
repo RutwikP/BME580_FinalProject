@@ -25,10 +25,10 @@ library(caret)
 # Each of us are saving our data locally (for now at least)
 # To call out the sav file, we need to use different directories.
 #Carl's Directory
-#hip_fracture_df = read_sav('/Users/zhixiangyao/Desktop/Spring\ 2023/Intro\ BioMed\ Data\ Sci/Project/BME580_FinalProject/Data/HipFractureQualityData.sav') # Carl's Directory
+hip_fracture_raw = read_sav('/Users/zhixiangyao/Desktop/Spring\ 2023/Intro\ BioMed\ Data\ Sci/Project/HipFractureQualityData.sav') # Carl's Directory
 
 #Bruno's Directory
-hip_fracture_raw = read_sav('../../Analysis/Data/HipFractureQualityData.sav')
+#hip_fracture_raw = read_sav('../../Analysis/Data/HipFractureQualityData.sav')
 ```
 
 
@@ -43,7 +43,6 @@ train_full <- as.data.frame(train_full)
 #lets drop CASEID as it is not important to our model
 train_full <- train_full %>% 
   select(-CASEID)
-
 ```
 
 
@@ -57,9 +56,9 @@ sum(is.na(train_full))
 
 
 ```{r cars}
-#lets convert our target variable to a factor and rename it 
-train_full$Readmission_Y_N <- factor(train_full$Readmission_Y_N)
+#lets convert our target variable to a factor and rename it
 names(train_full)[311] <- "Readmission_Y_N"
+train_full$Readmission_Y_N <- factor(train_full$Readmission_Y_N)
 colnames(train_full)
 ```
 
@@ -72,19 +71,16 @@ age_histogram = ggplot(data = train_full, mapping = aes(x = AGE, fill = Readmiss
   geom_histogram(color = 'black', fill = 'lightblue', binwidth = 1) + 
   facet_wrap(~Readmission_Y_N, ncol = 2, labeller = labeller(Readmission_Y_N = c('0' = 'Not Readmitted', '1' = 'Readmitted')))+
   labs(title = "Age Distribution: Readmitted v. Not Readmitted")
- 
-  
 age_histogram
+ggsave("age_histogram.png", plot = age_histogram)
 
 #now I will try the same plot with a KDE to get a better sense if their is a distriubution
 age_KDE = ggplot(data = train_full, mapping = aes(x = AGE, fill = Readmission_Y_N)) + 
   geom_density(alpha = 0.6) + 
   facet_wrap(~Readmission_Y_N, ncol = 2, labeller = labeller(Readmission_Y_N = c('0' = 'Not Readmitted', '1' = 'Readmitted')))+
   labs(title = "Age Distribution: Readmitted v. Not Readmitted")
-  
-
 age_KDE
-
+ggsave("age_KDE.png", plot = age_KDE)
 ```
 
 ```{r}
@@ -103,7 +99,6 @@ race_df$RACE_NEW <- as.factor(race_df$RACE_NEW)
 
 race_df %>% 
   summarise(n_distinct(RACE_NEW))
-
 ```
 
 
@@ -112,22 +107,20 @@ race_df %>%
 readmission_rates <- aggregate(Readmission_Y_N ~ RACE_NEW, data = race_df, FUN = function(x) mean(x)*100)
 readmission_rates <- readmission_rates[-4,]
 race_labels <- c('American Indian or Alaska Native' = 'Native American', 'Asian' = 'Asian', 'Black or African American' = 'Black', 'Native Hawaiian or Pacific Islander' = 'Hawaiin or Pacific Islander', 'Some Other Race' = 'Other', 'White' = 'White')
-
-
-
 ```
 
 
 ```{r}
-ggplot(readmission_rates, aes(x = RACE_NEW, y = Readmission_Y_N)) +
+readmissionrates_hist <- ggplot(readmission_rates, aes(x = RACE_NEW, y = Readmission_Y_N)) +
   geom_bar(stat = "identity", fill = "steelblue") +
   labs(x = "Race", y = "Readmission Rate (%)", title = "Readmission Rates by Race") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   scale_x_discrete(labels = race_labels) +
   guides(fill = guide_legend(title = "Race Abbreviations", title.position = "top", nrow = 1))
+readmissionrates_hist
+ggsave("readmissionrates_hist.png", plot = readmissionrates_hist)
 
 readmission_rates
-
 ```
 
 ```{r}
@@ -230,7 +223,6 @@ readmission_rates_2019
 ```{r}
 readmission_rates_2020 <- aggregate(Readmission_Y_N ~ RACE_NEW, data = year_2020, FUN = function(x) mean(x)*100)
 
-
 readmission_rates_2020
 
 race_20 <- ggplot(readmission_rates_2020, aes(x = RACE_NEW, y = Readmission_Y_N)) +
@@ -240,15 +232,13 @@ race_20 <- ggplot(readmission_rates_2020, aes(x = RACE_NEW, y = Readmission_Y_N)
   guides(fill = guide_legend(title = "Race Abbreviations", title.position = "top", nrow = 1))
 
 readmission_rates_2020
-
-
-
 ```
 
 ```{r}
-(race_17 + race_18)
-(race_19 + race_20)
-
+race_17 | race_18
+race_19 | race_20
+ggsave("race_17_18.png", plot = (race_17 | race_18))
+ggsave("race_19_20.png", plot = (race_19 | race_20))
 ```
 
 `

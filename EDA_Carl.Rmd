@@ -26,7 +26,7 @@ library(naniar)
 
 #hip_fracture_df = read_sav('../Analysis/Data/HipFractureQualityData.sav') # Bruno's Directory
 
-hip_fracture_df = read_sav('/Users/zhixiangyao/Desktop/Spring\ 2023/Intro\ BioMed\ Data\ Sci/Project/BME580_FinalProject/HipFractureQualityData.sav') # Carl's Directory
+hip_fracture_df = read_sav('/Users/zhixiangyao/Desktop/Spring\ 2023/Intro\ BioMed\ Data\ Sci/Project/HipFractureQualityData.sav') # Carl's Directory
 ```
 
 
@@ -177,7 +177,7 @@ ggsave("readmit_sex+race.png", plot = sex_race_read)
 ```
 
 ```{r}
-agg_df_srad30 <- setNames(aggregate(df2$SEX, by=list(df2$SEX,df2$RACE_NEW,df2$ReadmissionPost_117), FUN=length),
+agg_df_srad30 <- setNames(aggregate(df2$SEX, by=list(df2$SEX,df2$RACE_NEW,df2$ReadmissionPost_119), FUN=length),
                    c("Sex", "Race","Readmissionin30days","Counts"))
 
 sex_race_read30 <- ggplot(agg_df_srad30, aes(x = Sex, fill = Readmissionin30days))+

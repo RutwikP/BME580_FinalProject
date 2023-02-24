@@ -26,7 +26,7 @@ library(naniar)
 
 #hip_fracture_df = read_sav('../Analysis/Data/HipFractureQualityData.sav') # Bruno's Directory
 
-hip_fracture_df = read_sav('/Users/zhixiangyao/Desktop/Spring\ 2023/Intro\ BioMed\ Data\ Sci/Project/BME580_FinalProject/Data/HipFractureQualityData.sav') # Carl's Directory
+hip_fracture_df = read_sav('/Users/zhixiangyao/Desktop/Spring\ 2023/Intro\ BioMed\ Data\ Sci/Project/BME580_FinalProject/HipFractureQualityData.sav') # Carl's Directory
 ```
 
 

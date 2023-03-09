@@ -7,13 +7,55 @@ date: "2023-03-07"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-
-
+library(haven)
+library(dplyr)
+library(plyr)
+library(ggplot2)
+library(ggrepel)
+library(corrplot)
+library(patchwork)
+library(psych)
+library(tidyverse)
+library(gridExtra)
+library(naniar)
+library(caret)
 
 ```
 
 
-```{r cars}
+```{r}
+#read in the data
+hip_fracture_raw = read_sav('../Data/HipFractureQualityData.sav')
+```
+
+
+```{r}
+#drop CASEID 
+#split the training and test sets 80/20. We want some extra in our training for validation
+set.seed(34)
+splits <- createDataPartition(y = hip_fracture_raw$ReadmissionPost_119, p = 0.8, list = FALSE)
+train_full = hip_fracture_raw[splits,]
+test_data = hip_fracture_raw[-splits, ]
+train_full <- as.data.frame(train_full)
+
+#lets drop CASEID as it is not important to our model
+train_full <- train_full %>% 
+  select(-CASEID)
+```
+
+
+```{r}
+#gets index of col name
+which(colnames(train_full) == 'PRPT')
+
+```
+
+
+
+```{r}
+
+
+
 
 ```
 

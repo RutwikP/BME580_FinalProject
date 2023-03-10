@@ -43,19 +43,75 @@ train_full <- train_full %>%
   select(-CASEID)
 ```
 
+```{r}
+
+colnames(train_full)
+
+```
+
 
 ```{r}
 #gets index of col name
 which(colnames(train_full) == 'PRPT')
 
+
+#lets make a list of the encoded columns we need to drop as they will cause leakage
+#these are all columns that are outside of peri-opertive time period including long term outcomes such as readmission status, mortality, place of residence at 30 days, 
+cols_leakage = c('ReadmissionPost_117', 'Readmission2Post_1', 'Readmission2Post_2', 'Readmission2Post_3', 'Readmission3Post_4', 'Readmission3Post_5', 'Mortality', 'ClaivenDindo', 'casematch22', 'PostOpResidence30_36', 'PostOpResidence30_37', 'PostOpResidence30_38', 'PostOpResidence30_39', 'PostOpResidence30_40', 'PostOpResidence30_41', 'PostOpResidence30_42', 'PostOpResidence30_43')
+
+drop_leakage <- function(df, cols) {
+  df_new = select(df,-cols)
+  return(df_new)
+}
+
 ```
 
 
 
 ```{r}
+df_no_leaks = drop_leakage(train_full, cols_leakage)
+ncol(df_no_leaks)
+```
+
+```{r}
+#for now we will keep the encoded columns that we were given and use them in our model but there are some original columns we probably want to use
 
 
+#this vector is for the original columns that we may want to be in our model but our not yet encoded or do not need to be encoded encoded
+original_cols_keep = c('CPT', 'WORKRVU', 'AGE', 'OPERYR', 'ANESTHES', "PRSODM", "PRBUN", "PRCREAT", "PRALBUM", "PRBILI",  "PRSGOT",  "PRALKPH", "PRWBC",  "PRHCT", "PRPLATE", "PRPTT", "PRINR", "PRPT", 'OPTIME', 'TOTHLOS', 'ADMQTR', 'HDTOODAY', 'OTHCDIFF')
 
+#for other encoded columns we want to drop 
+encoded_drop = c('AGE65')
+
+#vector for original columns I am not sure what to do with yet
+unsure_drop = c('ELECTSURG')
+```
+
+
+```{r}
+#using this cell to inspect columns as I go through them to see if add information 
+
+#not sure if we should keep 
+table(df_no_leaks$ELECTSURG)
+
+#3 leveled variable
+table(df_no_leaks$DIABETES)
+
+#look at weight loss - currently not encoded
+table(df_no_leaks$WTLOSS)
+
+#CPT code only has unique values so we will want to use and probably encode it later, work RVU we can keep as is for now, age we can keep as is for now
+table(df_no_leaks$CPT)
+
+#looks like all but 78 cases were outpatient, will probably drop this column 
+table(df_no_leaks$INOUT)
+
+#we will keep this column 
+table(df_no_leaks$AGE)
+
+#Will probably not use surgspec because vast majority are ortho  
+table(df_no_leaks$SURGSPEC)
 
 ```
+
 

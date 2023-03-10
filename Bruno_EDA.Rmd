@@ -25,14 +25,13 @@ library(caret)
 # Each of us are saving our data locally (for now at least)
 # To call out the sav file, we need to use different directories.
 #Carl's Directory
-hip_fracture_raw = read_sav('/Users/zhixiangyao/Desktop/Spring\ 2023/Intro\ BioMed\ Data\ Sci/Project/HipFractureQualityData.sav') # Carl's Directory
+#hip_fracture_raw = read_sav('/Users/zhixiangyao/Desktop/Spring\ 2023/Intro\ BioMed\ Data\ Sci/Project/HipFractureQualityData.sav')
 
 #Bruno's Directory
-#hip_fracture_raw = read_sav('../../Analysis/Data/HipFractureQualityData.sav')
-
 hip_fracture_raw = read_sav('../Data/HipFractureQualityData.sav')
 
 ```
+
 
 
 ```{r}
@@ -47,8 +46,7 @@ train_full <- as.data.frame(train_full)
 train_full <- train_full %>% 
   select(-CASEID)
 
-#send training data to a csv file that we will use for modelling
-write_csv2(train_full, 'train_full.csv', row = TRUE)
+
 
 
 ```
@@ -60,6 +58,13 @@ write_csv2(train_full, 'train_full.csv', row = TRUE)
 options(max.print = 4000)
 summary(train_full)
 sum(is.na(train_full))
+```
+
+```{r}
+#looks like some class imbalance 9.5:1 for our response variable, worth keeping in mind 
+table(df_no_leaks$ReadmissionPost_119)
+26385/2803
+
 ```
 
 
@@ -247,7 +252,11 @@ race_17 | race_18
 race_19 | race_20
 ggsave("race_17_18.png", plot = (race_17 | race_18))
 ggsave("race_19_20.png", plot = (race_19 | race_20))
-```
+
+``` 
+
+
+
 
 `
 

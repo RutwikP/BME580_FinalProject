@@ -25,7 +25,7 @@ library(caret)
 
 ```{r}
 #read in the data
-hip_fracture_raw = read_sav('../Data/HipFractureQualityData.sav')
+hip_fracture_raw = read_sav('../Data/HipFractureQualityData.sav') # This dir appears to work for both Carl and Bruno, if Rutwik can also use this dir it'll be much easier
 ```
 
 

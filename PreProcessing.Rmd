@@ -114,4 +114,67 @@ table(df_no_leaks$SURGSPEC)
 
 ```
 
+Now let's look at the missing data.
+
+First is observing the numerical data to observe the list
+```{r}
+#options(max.print = 4000)
+#summary(train_full)
+#sum(is.na(train_full))
+train_num <- select_if(train_full, is.numeric) 
+train_max <- data.frame(apply(train_num, 2, max))
+train_min <- data.frame(apply(train_num, 2, min))
+```
+
+```{r}
+train_full_copy1 <- data.frame(train_full)
+missing1 <- data.frame(map(train_full_copy1, ~sum(is.na(.))))
+missing1 <- missing1[ , colSums(missing1 != 0, na.rm = TRUE) > 0]
+sum(missing1)
+
+train_full_copy2 <- data.frame(train_full)
+train_full_copy2[train_full_copy2 == -99] <- NA
+missing2 <- data.frame(map(train_full_copy2, ~sum(is.na(.))))
+missing2 <- missing2[ , colSums(missing2 != 0, na.rm = TRUE) > 0]
+sum(missing2)
+```
+
+It appears that there are 2 columns (BLEED_UNITS_TOT and casematch22) include missing value, in addition, there are another 65 columns encode missing value with "-99". In the training set, we have 29188 observations. We can set up a threshold, and if the NA counts of the column greater than it should be excluded from analysis. The rationale of considering -99 as missing value is because columns such as Height and weight.
+
+However, there are other parameters that should not be negative is negative: BMI, but it is not -99. Further looking into the data set, on can observe that BMI < 0 happens when there is at least 1 missing value appear in either HEIGHT or WEIGHT column, so if we are to look into BMI's influence to the variable of interests, the negative values shall be removed since those are inaccurate measurements. For the ease of coding, negative BMI will also be encoded as NA's in the following analysis.
+
+```{r}
+train_full_copy3 <- data.frame(train_full_copy2)
+train_full_copy3 <- train_full_copy3 %>% mutate(BMICategories = ifelse(is.na(HEIGHT) | is.na(WEIGHT), NA, BMICategories))
+train_full_copy3 <- train_full_copy3 %>% mutate(BMI = ifelse(is.na(BMICategories), NA, BMI))
+train_num3 <- select_if(train_full_copy3, is.numeric)
+train_min3 <- data.frame(apply(train_num3, 2, min, na.rm = TRUE))
+missing3 <- data.frame(map(train_full_copy3, ~sum(is.na(.))))
+missing3 <- missing3[ , colSums(missing3 != 0) > 0]
+sum(missing3)
+# 
+# 
+# train_full_copy3$BMI <- train_full_copy3[train_full_copy3$BMI < 0]
+# train_full_copy3$BMI <- train_full_copy3[train_full_copy3$BMI < 0]
+```
+It appears here that there are 2 columns has no min because the column contains only missing data, which can be as well removed.
+Also, there are some columns contains the value unknown in ethnicity column, but it will be removed anyways...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

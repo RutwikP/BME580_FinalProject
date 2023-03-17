@@ -74,13 +74,39 @@ ncol(df_no_leaks)
 ```
 
 ```{r}
+#now lets start dropping other columns based on relevancy and missingness 
+
+#Drop lab values albumin, bilirubin, SGOT, alkphos, PTT PT (missingness)
+cols_drop = c("DPRNA", "DPRBUN", "DPRCREAT", "DPRALBUM", "DPRBILI", "DPRSGOT", 
+              "DPRALKPH", "DPRWBC", "DPRHCT", "DPRPLATE", "DPRPTT", "DPRPT", "DPRINR", "PRALBUM",
+              "PRBILI", "PRSGOT", "PRALKPH", "PRPTT", "PRPT", "OTHERWRVU1", "OTHERWRVU2", "OTHERWRVU3", 
+              "OTHERWRVU4", "OTHERWRVU5", "CONWRVU1", "CONWRVU2", "CONWRVU3", "CONWRVU4", "CONWRVU5", 
+              "YRDEATH","DSUPINFEC", "DWNDINFD","DORGSPCSSI", "DDEHIS", "DOUPNEUMO", "DREINTUB", "DPULEMBOL", 
+              "DFAILWEAN", "DRENAINSF", "DOPRENAFL", "DURNINFEC", "DCNSCVA", "DCDARREST", "DCDMI", 
+              "DOTHBLEED", "DOTHDVT", "DOTHSYSEP", "DOTHSESHOCK", "DOPERTOD", "RETORPODAYS","RETOR2PODAYS", "READMPODAYS1",
+              "READMPODAYS2", "READMPODAYS3", "DOTHCDIFF", "BLEED_UNITS_TOT") 
+
+drop_cols<- function(df, cols) {
+  df_new = select(df,-cols)
+  return(df_new)
+  }
+  
+df_simplified = drop_cols(df_no_leaks, cols_drop)
+ncol(df_simplified)
+
+```
+
+
+```{r}
 #for now we will keep the encoded columns that we were given and use them in our model but there are some original columns we probably want to use
+```
 
 
+```{r}
 #this vector is for the original columns that we may want to be in our model but our not yet encoded or do not need to be encoded encoded
 original_cols_keep = c('CPT', 'WORKRVU', 'AGE', 'OPERYR', 'ANESTHES', "PRSODM", "PRBUN", "PRCREAT", "PRALBUM", "PRBILI",  "PRSGOT",  "PRALKPH", "PRWBC",  "PRHCT", "PRPLATE", "PRPTT", "PRINR", "PRPT", 'OPTIME', 'TOTHLOS', 'ADMQTR', 'HDTOODAY', 'OTHCDIFF')
 
-#for other encoded columns we want to drop 
+#for othercolumns we want to drop 
 encoded_drop = c('AGE65')
 
 #vector for original columns I am not sure what to do with yet

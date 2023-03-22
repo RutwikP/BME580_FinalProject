@@ -41,51 +41,49 @@ The goal of this file is to simplify our original data set. I will do this by
 raw_data = read_sav('../Data/HipFractureQualityData.sav')
 
 ```
-
+1. For clarity purposes we have stored the columns in vectors according to what type of information they are and why have decided to drop them. However, in a separate cell I will combine into one vector and drop all at once  
 
 ```{r}
 #these are the columns that will cause leakage 
 cols_leakage_encoded = c('ReadmissionPost_117', 'Readmission2Post_1', 'Readmission2Post_2', 'Readmission2Post_3', 'Readmission3Post_4', 'Readmission3Post_5', 'Mortality', 'AnyAdverseEvent', 'ClaivenDindo', 'PostOpResidence30_36', 'PostOpResidence30_37', 'PostOpResidence30_38', 'PostOpResidence30_39', 'PostOpResidence30_40', 'PostOpResidence30_41', 'PostOpResidence30_42', 'PostOpResidence30_43')
 
-#drops the columns that will cause leakage
-df_simplified <- select(raw_data, -cols_leakage_encoded)
-
 #some of these may have already been encoded but I don't think so. Also our un encoded response is being dropped here
 #dropped all days 
 cols_leakage_original = c("STILLINHOSP", "REOPERATION1", "REOPORCPT1", "REOPERATION2", "RETOR2PODAYS", "REOPOR2CPT1", "RETOR2RELATED", "REOPOR2ICD91", "REOPERATION3", "READMISSION1", "READMPODAYS1", "UNPLANNEDREADMISSION1", "READMRELATED1", "READMSUSPREASON1", "READMISSION2", "READMPODAYS2", "UNPLANNEDREADMISSION2", "READMRELATED2", "READMRELICD92", "READMISSION3","READMPODAYS3", "UNPLANNEDREADMISSION3", "READMRELATED3", "READMSUSPREASON3", "READMRELICD93" )
 
-#drops the original columns that will cause leakage 
-df_simplified <- select(df_simplified, -cols_leakage_original)
 
-
-#dropped encoded missingness, BMI cats, 
-#dropped columns that were dummy encoded for a binary variable (re-oppost_115, Stroke_1)
+#dropped BMI catagories quality metrics I did not understand, encoded missingness, 
+#dropped columns that were dummy encoded for a binary variable (re_oppost_115, Stroke_1)
 #dropped 3 level diabetes column (keep binary)
-#dropped post complication columns indicating indicating no complication (WBAT 18/19)
+#dropped post complication columns indicating indicating missing/no complication (WBAT 18/19)
 encoded_irrelevant <- c("MissingRaceStudy", "Age65", "QualityMetric", "QualityGreater2", "casematch22", "albuminmissing", 'MissingVariableInfo2', 'BMICategories', 'agemissing', 'HtMissing1', 'WtMissing1', 'LOSmissing', 'ReOPPost_115', 'DiabetesPre_33', 'DiabetesPre_34', 'DiabetesPre_35', 'Stroke_1', 'Ethnicity_12', 'Ethnicity_13', 'StrokePost_101', 'WBATPOD1_18', 'WBATPOD1_19', 'PreOpDelirium_3', 'PreOpMOBAID_9', 'DVTProphylaxisPost28_22', 'PostOpDelirium_27', 'PreOpMOBAID_9', 'PostOpMobAid_30', 'PostOpMobAid_32')
 
-#at this point all the encoded columns that exist are relevant to us - I have documented what is encoded in the google drive
-df_simplified <- select(df_simplified, -encoded_irrelevant)
+#dropping columns that refer to day before complication (leakage/missingness) and days between pre-op labs and surgery (missingness/irrelevant)
+days_labs_comp <- c('DOTHSESHOCK', 'DOTHSYSEP',  "DPRNA", "DPRBUN", "DPRCREAT", "DPRALBUM", "DPRBILI", "DPRSGOT", "DPRALKPH", "DPRWBC", "DPRHCT", "DPRPLATE", "DPRPTT", "DPRPT", "DPRINR", "DSUPINFEC", "DWNDINFD","DORGSPCSSI", "DDEHIS", "DOUPNEUMO", "DREINTUB", "DPULEMBOL", "DFAILWEAN","DRENAINSF", "DOPRENAFL", "DURNINFEC", "DCNSCVA", "DCDARREST", "DCDMI", "DOTHBLEED", "DOTHDVT", "DOTHSYSEP", "DOTHSESHOCK", "DOPERTOD")
 
+#drop concurrent procedure information 
+original_concurrent_proc <- c("CONWRVU4","CONCURR5", "CONCPT5", "CONWRVU5", "OTHERWRVU1", "OTHERPROC2", "OTHERCPT2", "OTHERWRVU2", "OTHERPROC3", "OTHERCPT3", "OTHERWRVU3", "OTHERPROC4", "OTHERCPT4", "OTHERWRVU4", "OTHERPROC5", "OTHERCPT5", "OTHERWRVU5", "CONCURR1", "CONCPT1", "CONWRVU1", "CONCURR2", "CONCPT2", "CONWRVU2", "CONCURR3", "CONCPT3", "CONWRVU3", "CONCURR4", "OTHERPROC1", "OTHERCPT1",  "CONCPT4" ) 
 
-#original columns to drop 
-original_drop <- c('CASEID','HIP_RES30D', 'PRNCPTX', 'ADMYR', 'SURGSPEC', 'READMSUSPREASON2', 'RETORRELATED', 'BLEED_UNITS_TOT', 'DOTHCDIFF', 'NOTHCDIFF', 'DOTHCDIFF', 'ANESTHES_OTHER', 'PODIAG_OTHER10', 'PODIAG_OTHER', 'WOUND_CLOSURE', 'DOPERTOD', 'PODIAGTX10', 'PODIAG10', 'PODIAGTX', 'PODIAG', 'DOTHSESHOCK', 'DOTHSYSEP', "OTHERPROC1", "OTHERCPT1", "OTHERWRVU1", "OTHERPROC2", "OTHERCPT2", "OTHERWRVU2", "OTHERPROC3", "OTHERCPT3", "OTHERWRVU3", "OTHERPROC4", "OTHERCPT4", "OTHERWRVU4", "OTHERPROC5", "OTHERCPT5", "OTHERWRVU5", "CONCURR1", "CONCPT1", "CONWRVU1", "CONCURR2", "CONCPT2", "CONWRVU2", "CONCURR3", "CONCPT3", "CONWRVU3", "CONCURR4", "CONCPT4", "DPRNA", "DPRBUN", "DPRCREAT", "DPRALBUM", "DPRBILI", "DPRSGOT", "DPRALKPH", "DPRWBC", "DPRHCT", "DPRPLATE", "DPRPTT", "DPRPT", "DPRINR", "DSUPINFEC", "DWNDINFD","DORGSPCSSI", "DDEHIS", "DOUPNEUMO", "DREINTUB", "DPULEMBOL", "DFAILWEAN","DRENAINSF", "DOPRENAFL", "DURNINFEC", "DCNSCVA", "DCDARREST", "DCDMI", "DOTHBLEED", "DOTHDVT", "DOTHSYSEP", "DOTHSESHOCK", "DOPERTOD", "RETORPODAYS")
+#other originals to drop
+original_drop <- c('CASEID','HIP_RES30D', 'PRNCPTX', 'ADMYR', 'SURGSPEC', 'READMSUSPREASON2', 'RETORRELATED', 'BLEED_UNITS_TOT', 'DOTHCDIFF', 'NOTHCDIFF', 'DOTHCDIFF', 'ANESTHES_OTHER', 'PODIAG_OTHER10', 'PODIAG_OTHER', 'WOUND_CLOSURE', 'DOPERTOD', 'PODIAGTX10', 'PODIAG10', 'PODIAGTX', 'PODIAG',  "RETORPODAYS", 'YRDEATH', 'HDISDT', 'EOL_WDCARE' )
 
-drop_labs_missing <- c("DPRNA", "DPRBUN", "DPRCREAT", "DPRALBUM", "DPRBILI", "DPRSGOT")
-
-df_simplified <- select(df_simplified, -original_drop)
-
-colnames(df_simplified)
 ```
+## In the Below cell I will combine all the columns into one vector and drop all at once. 
 
 
 ```{r}
+cols_drop = c('ReadmissionPost_117', 'Readmission2Post_1', 'Readmission2Post_2', 'Readmission2Post_3', 'Readmission3Post_4', 'Readmission3Post_5', 'Mortality', 'AnyAdverseEvent', 'ClaivenDindo', 'PostOpResidence30_36', 'PostOpResidence30_37', 'PostOpResidence30_38', 'PostOpResidence30_39', 'PostOpResidence30_40', 'PostOpResidence30_41', 'PostOpResidence30_42', 'PostOpResidence30_43',"STILLINHOSP", "REOPERATION1", "REOPORCPT1", "REOPERATION2", "RETOR2PODAYS", "REOPOR2CPT1", "RETOR2RELATED", "REOPOR2ICD91", "REOPERATION3", "READMISSION1", "READMPODAYS1", "UNPLANNEDREADMISSION1", "READMRELATED1", "READMSUSPREASON1", "READMISSION2", "READMPODAYS2", "UNPLANNEDREADMISSION2", "READMRELATED2", "READMRELICD92", "READMISSION3","READMPODAYS3", "UNPLANNEDREADMISSION3", "READMRELATED3", "READMSUSPREASON3", "READMRELICD93", "MissingRaceStudy", "Age65", "QualityMetric", "QualityGreater2", "casematch22", "albuminmissing", 'MissingVariableInfo2', 'BMICategories', 'agemissing', 'HtMissing1', 'WtMissing1', 'LOSmissing', 'ReOPPost_115', 'DiabetesPre_33', 'DiabetesPre_34', 'DiabetesPre_35', 'Stroke_1', 'Ethnicity_12', 'Ethnicity_13', 'StrokePost_101', 'WBATPOD1_18', 'WBATPOD1_19', 'PreOpDelirium_3', 'PreOpMOBAID_9', 'DVTProphylaxisPost28_22', 'PostOpDelirium_27', 'PreOpMOBAID_9', 'PostOpMobAid_30', 'PostOpMobAid_32', 'DOTHSESHOCK', 'DOTHSYSEP',  "DPRNA", "DPRBUN", "DPRCREAT", "DPRALBUM", "DPRBILI", "DPRSGOT", "DPRALKPH", "DPRWBC", "DPRHCT", "DPRPLATE", "DPRPTT", "DPRPT", "DPRINR", "DSUPINFEC", "DWNDINFD","DORGSPCSSI", "DDEHIS", "DOUPNEUMO", "DREINTUB", "DPULEMBOL", "DFAILWEAN","DRENAINSF", "DOPRENAFL", "DURNINFEC", "DCNSCVA", "DCDARREST", "DCDMI", "DOTHBLEED", "DOTHDVT", "DOTHSYSEP", "DOTHSESHOCK", "DOPERTOD", "CONWRVU4","CONCURR5", "CONCPT5", "CONWRVU5", "OTHERWRVU1", "OTHERPROC2", "OTHERCPT2", "OTHERWRVU2", "OTHERPROC3", "OTHERCPT3", "OTHERWRVU3", "OTHERPROC4", "OTHERCPT4", "OTHERWRVU4", "OTHERPROC5", "OTHERCPT5", "OTHERWRVU5", "CONCURR1", "CONCPT1", "CONWRVU1", "CONCURR2", "CONCPT2", "CONWRVU2", "CONCURR3", "CONCPT3", "CONWRVU3", "CONCURR4", "OTHERPROC1", "OTHERCPT1",  "CONCPT4", 'CASEID','HIP_RES30D', 'PRNCPTX', 'ADMYR', 'SURGSPEC', 'READMSUSPREASON2', 'RETORRELATED', 'BLEED_UNITS_TOT', 'DOTHCDIFF', 'NOTHCDIFF', 'DOTHCDIFF', 'ANESTHES_OTHER', 'PODIAG_OTHER10', 'PODIAG_OTHER', 'WOUND_CLOSURE', 'DOPERTOD', 'PODIAGTX10', 'PODIAG10', 'PODIAGTX', 'PODIAG',  "RETORPODAYS", 'YRDEATH', 'HDISDT', 'EOL_WDCARE')
 
+length(cols_drop)
+
+df_simplified = select(raw_data, -cols_drop)
 
 ```
-
-
 ```{r}
 
 
+
+
+
 ```
+

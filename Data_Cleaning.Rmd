@@ -85,7 +85,7 @@ Now that we have dropped the columns we are not interested in we can clean up so
 The output of this file is the orignal data frame with 169 columns dropped, leaving us with 219 total columns
 Further Description: 
 Encoded Columns: total of 113 columns coming from 64 different variables 
-Original Catagorical: 7 columns that still need to be encoded 
+Original Categorical: 7 columns that still need to be encoded 
 Original Numeric: 12 columns that still need to be examined for missingness and scaled
 
 ```{r}
@@ -109,6 +109,8 @@ test_data <- as.data.frame(test_data)
 
 ```{r}
 write_csv(train_full, '../hip_fracture_training.csv')
-write_csv(train_full, '../hip_fracture_test.csv')
+write_csv(test_data, '../hip_fracture_test.csv')
 
 ```
+
+

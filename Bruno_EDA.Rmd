@@ -1,0 +1,278 @@
+---
+title: "HipFractureEDA"
+output: pdf_document
+date: "2023-02-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(haven)
+library(dplyr)
+library(plyr)
+library(ggplot2)
+library(ggrepel)
+library(corrplot)
+library(patchwork)
+library(psych)
+library(tidyverse)
+library(gridExtra)
+library(naniar)
+library(caret)
+```
+
+#Loading Data 
+```{r}
+# Each of us are saving our data locally (for now at least)
+# To call out the sav file, we need to use different directories.
+#Carl's Directory
+#hip_fracture_raw = read_sav('/Users/zhixiangyao/Desktop/Spring\ 2023/Intro\ BioMed\ Data\ Sci/Project/HipFractureQualityData.sav')
+
+#Bruno's Directory
+hip_fracture_raw = read_sav('../Data/HipFractureQualityData.sav')
+
+```
+
+
+
+```{r}
+#split the training and test sets 80/20. We want some extra in our training for validation
+set.seed(34)
+splits <- createDataPartition(y = hip_fracture_raw$ReadmissionPost_119, p = 0.8, list = FALSE)
+train_full = hip_fracture_raw[splits,]
+test_data = hip_fracture_raw[-splits, ]
+train_full <- as.data.frame(train_full)
+
+#lets drop CASEID as it is not important to our model
+train_full <- train_full %>% 
+  select(-CASEID)
+
+
+
+
+```
+
+
+```{r cars}
+#first off lets get a summary of the data to see what is missing. We want to look more closely at the encoded columns (Starting at Gender = 1) since we would not expect NA's here
+#it seems like many of the NA values are encoded as -99. This appears to be the case in instances where the NA is not applicable in this situation. This is a good way of encoding the missingness in our model in a meaninful way. Moreover, it looks like there are very relatively few missing values
+options(max.print = 4000)
+summary(train_full)
+sum(is.na(train_full))
+```
+
+```{r}
+#looks like some class imbalance 9.5:1 for our response variable, worth keeping in mind 
+table(df_no_leaks$ReadmissionPost_119)
+26385/2803
+
+```
+
+
+```{r cars}
+#lets convert our target variable to a factor and rename it
+names(train_full)[311] <- "Readmission_Y_N"
+train_full$Readmission_Y_N <- factor(train_full$Readmission_Y_N)
+colnames(train_full)
+```
+
+
+
+```{r}
+#lets look at the distribution of Age within or data set
+
+age_histogram = ggplot(data = train_full, mapping = aes(x = AGE, fill = Readmission_Y_N)) + 
+  geom_histogram(color = 'black', fill = 'lightblue', binwidth = 1) + 
+  facet_wrap(~Readmission_Y_N, ncol = 2, labeller = labeller(Readmission_Y_N = c('0' = 'Not Readmitted', '1' = 'Readmitted')))+
+  labs(title = "Age Distribution: Readmitted v. Not Readmitted")
+age_histogram
+ggsave("age_histogram.png", plot = age_histogram)
+
+#now I will try the same plot with a KDE to get a better sense if their is a distriubution
+age_KDE = ggplot(data = train_full, mapping = aes(x = AGE, fill = Readmission_Y_N)) + 
+  geom_density(alpha = 0.6) + 
+  facet_wrap(~Readmission_Y_N, ncol = 2, labeller = labeller(Readmission_Y_N = c('0' = 'Not Readmitted', '1' = 'Readmitted')))+
+  labs(title = "Age Distribution: Readmitted v. Not Readmitted")
+age_KDE
+ggsave("age_KDE.png", plot = age_KDE)
+```
+
+```{r}
+#now that we have looked at age distribution within readmission lets look at race
+#first lets look at readmission rates by race
+race_df <- train_full[, c('RACE_NEW', "Readmission_Y_N")]
+head(race_df)
+
+#great, there are no NAs in in 30 day readmission or race, therefore we calculate some statistics 
+sum(is.na(race_df))
+
+#lets look at readmission rates by each race, later we can check significance of differences 
+race_df$Readmission_Y_N <- as.numeric(as.character(race_df$Readmission_Y_N))
+
+race_df$RACE_NEW <- as.factor(race_df$RACE_NEW)
+
+race_df %>% 
+  summarise(n_distinct(RACE_NEW))
+```
+
+
+```{r}
+#Group by race and look at readmission rates
+readmission_rates <- aggregate(Readmission_Y_N ~ RACE_NEW, data = race_df, FUN = function(x) mean(x)*100)
+readmission_rates <- readmission_rates[-4,]
+race_labels <- c('American Indian or Alaska Native' = 'Native American', 'Asian' = 'Asian', 'Black or African American' = 'Black', 'Native Hawaiian or Pacific Islander' = 'Hawaiin or Pacific Islander', 'Some Other Race' = 'Other', 'White' = 'White')
+```
+
+
+```{r}
+readmissionrates_hist <- ggplot(readmission_rates, aes(x = RACE_NEW, y = Readmission_Y_N)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "Race", y = "Readmission Rate (%)", title = "Readmission Rates by Race") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_x_discrete(labels = race_labels) +
+  guides(fill = guide_legend(title = "Race Abbreviations", title.position = "top", nrow = 1))
+readmissionrates_hist
+ggsave("readmissionrates_hist.png", plot = readmissionrates_hist)
+
+readmission_rates
+```
+
+```{r}
+#now that we've looked at some differences in readmission rates by race lets see if there are any changes between years
+year_df <- train_full[, c('RACE_NEW', "Readmission_Y_N", 'OPERYR' )]
+head(year_df)
+
+#great, there are no NAs in in 30 day readmission or race, therefore we calculate some statistics 
+sum(is.na(year_df))
+
+#lets look at readmission rates by each race, later we can check significance of differences 
+year_df$Readmission_Y_N <- as.numeric(as.character(race_df$Readmission_Y_N))
+year_df$RACE_NEW <- as.factor(race_df$RACE_NEW)
+year_df$OPERYR <- as.factor((year_df$OPERYR))
+
+year_2016 <- year_df %>%
+  filter(OPERYR == 2016)
+
+year_2017 <- year_df %>%
+  filter(OPERYR == 2017)
+
+year_2018 <- year_df %>%
+  filter(OPERYR == 2018)
+
+year_2019 <- year_df %>%
+  filter(OPERYR == 2019)
+
+year_2020 <- year_df %>%
+  filter(OPERYR == 2020)
+```
+
+
+```{r}
+#Group by race and look at readmission rates
+readmission_rates_2016 <- aggregate(Readmission_Y_N ~ RACE_NEW, data = year_2016, FUN = function(x) mean(x)*100)
+race_labels <- c('American Indian or Alaska Native' = 'Native American', 'Asian' = 'Asian', 'Black or African American' = 'Black', 'Native Hawaiian or Pacific Islander' = 'Hawaiin or Pacific Islander', 'Some Other Race' = 'Other', 'White' = 'White')
+
+readmission_rates_2016
+
+race_16 <- ggplot(readmission_rates_2016, aes(x = RACE_NEW, y = Readmission_Y_N)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "Race", y = "Readmission Rate (%)", title = "Readmission Rates by Race 2016") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  guides(fill = guide_legend(title = "Race Abbreviations", title.position = "top", nrow = 1))
+
+readmission_rates_2016
+```
+
+
+```{r}
+#Group by race and look at readmission rates
+readmission_rates_2017 <- aggregate(Readmission_Y_N ~ RACE_NEW, data = year_2017, FUN = function(x) mean(x)*100)
+
+
+readmission_rates_2017
+
+race_17 <- ggplot(readmission_rates_2017, aes(x = RACE_NEW, y = Readmission_Y_N)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "Race", y = "Readmission Rate (%)", title = "Readmission Rates by Race 2017") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  guides(fill = guide_legend(title = "Race Abbreviations", title.position = "top", nrow = 1))
+
+readmission_rates_2017
+```
+
+
+```{r}
+#Group by race and look at readmission rates
+readmission_rates_2018 <- aggregate(Readmission_Y_N ~ RACE_NEW, data = year_2018, FUN = function(x) mean(x)*100)
+
+
+readmission_rates_2018
+
+race_18 <- ggplot(readmission_rates_2018, aes(x = RACE_NEW, y = Readmission_Y_N)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "Race", y = "Readmission Rate (%)", title = "Readmission Rates by Race 2018") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  guides(fill = guide_legend(title = "Race Abbreviations", title.position = "top", nrow = 1))
+
+readmission_rates_2018
+```
+
+
+```{r}
+readmission_rates_2019 <- aggregate(Readmission_Y_N ~ RACE_NEW, data = year_2019, FUN = function(x) mean(x)*100)
+
+
+readmission_rates_2019
+
+race_19 <- ggplot(readmission_rates_2019, aes(x = RACE_NEW, y = Readmission_Y_N)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "Race", y = "Readmission Rate (%)", title = "Readmission Rates by Race 2019") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  guides(fill = guide_legend(title = "Race Abbreviations", title.position = "top", nrow = 1))
+
+readmission_rates_2019
+```
+
+
+```{r}
+readmission_rates_2020 <- aggregate(Readmission_Y_N ~ RACE_NEW, data = year_2020, FUN = function(x) mean(x)*100)
+
+readmission_rates_2020
+
+race_20 <- ggplot(readmission_rates_2020, aes(x = RACE_NEW, y = Readmission_Y_N)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "Race", y = "Readmission Rate (%)", title = "Readmission Rates by Race 2020") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  guides(fill = guide_legend(title = "Race Abbreviations", title.position = "top", nrow = 1))
+
+readmission_rates_2020
+```
+
+```{r}
+race_17 | race_18
+race_19 | race_20
+ggsave("race_17_18.png", plot = (race_17 | race_18))
+ggsave("race_19_20.png", plot = (race_19 | race_20))
+
+``` 
+
+
+
+
+`
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,270 @@
+---
+title: "Data_PreProcessing"
+output: html_document
+date: "2023-03-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(haven)
+library(dplyr)
+library(plyr)
+library(ggplot2)
+library(ggrepel)
+library(corrplot)
+library(patchwork)
+library(psych)
+library(tidyverse)
+library(gridExtra)
+library(naniar)
+library(caret)
+library(randomForest)
+require(caTools)
+```
+
+## Import dataset
+```{r}
+# read in the data
+# This dir appears to work for both Carl and Bruno, if Rutwik can also use this dir it'll be much easier
+hip_fracture_raw = read_sav('../Data/HipFractureQualityData.sav')
+```
+
+## Initial observations
+```{r}
+# drop CASEID 
+# split the training and test sets 80/20. We want some extra in our training for validation
+set.seed(34)
+splits <- createDataPartition(y = hip_fracture_raw$ReadmissionPost_119, p = 0.8, list = FALSE)
+train_full = hip_fracture_raw[splits,]
+test_data = hip_fracture_raw[-splits, ]
+train_full <- as.data.frame(train_full)
+
+# lets drop CASEID as it is not important to our model
+train_full <- train_full %>% 
+  select(-CASEID)
+
+# colnames(train_full)
+
+```
+
+## Drop leakage
+```{r}
+# gets index of col name
+which(colnames(train_full) == 'PRPT')
+
+
+# lets make a list of the encoded columns we need to drop as they will cause leakage
+# these are all columns that are outside of peri-opertive time period including long term outcomes such as readmission status, mortality, place of residence at 30 days, 
+cols_leakage = c('ReadmissionPost_117', 'Readmission2Post_1', 'Readmission2Post_2', 'Readmission2Post_3', 'Readmission3Post_4', 'Readmission3Post_5', 'Mortality', 'ClaivenDindo', 'casematch22', 'PostOpResidence30_36', 'PostOpResidence30_37', 'PostOpResidence30_38', 'PostOpResidence30_39', 'PostOpResidence30_40', 'PostOpResidence30_41', 'PostOpResidence30_42', 'PostOpResidence30_43')
+
+drop_leakage <- function(df, cols) {
+  df_new = select(df,-cols)
+  return(df_new)
+}
+
+df_no_leaks = drop_leakage(train_full, cols_leakage)
+ncol(df_no_leaks)
+```
+## Irrelevant cols and missingness
+```{r}
+# now lets start dropping other columns based on relevancy and missingness 
+
+# Drop lab values albumin, bilirubin, SGOT, alkphos, PTT PT (missingness)
+cols_drop = c("DPRNA", "DPRBUN", "DPRCREAT", "DPRALBUM", "DPRBILI", "DPRSGOT", 
+              "DPRALKPH", "DPRWBC", "DPRHCT", "DPRPLATE", "DPRPTT", "DPRPT", "DPRINR", "PRALBUM",
+              "PRBILI", "PRSGOT", "PRALKPH", "PRPTT", "PRPT", "OTHERWRVU1", "OTHERWRVU2", "OTHERWRVU3", 
+              "OTHERWRVU4", "OTHERWRVU5", "CONWRVU1", "CONWRVU2", "CONWRVU3", "CONWRVU4", "CONWRVU5", 
+              "YRDEATH","DSUPINFEC", "DWNDINFD","DORGSPCSSI", "DDEHIS", "DOUPNEUMO", "DREINTUB", "DPULEMBOL", 
+              "DFAILWEAN", "DRENAINSF", "DOPRENAFL", "DURNINFEC", "DCNSCVA", "DCDARREST", "DCDMI", 
+              "DOTHBLEED", "DOTHDVT", "DOTHSYSEP", "DOTHSESHOCK", "DOPERTOD", "RETORPODAYS","RETOR2PODAYS", "READMPODAYS1",
+              "READMPODAYS2", "READMPODAYS3", "DOTHCDIFF", "BLEED_UNITS_TOT") 
+
+drop_cols<- function(df, cols) {
+  df_new = select(df,-cols)
+  return(df_new)
+  }
+  
+df_simplified = drop_cols(df_no_leaks, cols_drop)
+ncol(df_simplified)
+
+#Below are missingness analysis; further actions shall be done upon 'df_simplified'
+
+```
+
+
+```{r}
+#for now we will keep the encoded columns that we were given and use them in our model but there are some original columns we probably want to use
+```
+
+
+```{r}
+#this vector is for the original columns that we may want to be in our model but our not yet encoded or do not need to be encoded encoded
+original_cols_keep = c('CPT', 'WORKRVU', 'AGE', 'OPERYR', 'ANESTHES', "PRSODM", "PRBUN", "PRCREAT", "PRALBUM", "PRBILI",  "PRSGOT",  "PRALKPH", "PRWBC",  "PRHCT", "PRPLATE", "PRPTT", "PRINR", "PRPT", 'OPTIME', 'TOTHLOS', 'ADMQTR', 'HDTOODAY', 'OTHCDIFF')
+
+#for othercolumns we want to drop 
+encoded_drop = c('AGE65')
+
+#vector for original columns I am not sure what to do with yet
+unsure_drop = c('ELECTSURG')
+```
+
+
+```{r}
+#using this cell to inspect columns as I go through them to see if add information 
+
+#not sure if we should keep 
+table(df_no_leaks$ELECTSURG)
+
+#3 leveled variable
+table(df_no_leaks$DIABETES)
+
+#look at weight loss - currently not encoded
+table(df_no_leaks$WTLOSS)
+
+#CPT code only has unique values so we will want to use and probably encode it later, work RVU we can keep as is for now, age we can keep as is for now
+table(df_no_leaks$CPT)
+
+#looks like all but 78 cases were outpatient, will probably drop this column 
+table(df_no_leaks$INOUT)
+
+#we will keep this column 
+table(df_no_leaks$AGE)
+
+#Will probably not use surgspec because vast majority are ortho  
+table(df_no_leaks$SURGSPEC)
+```
+
+Now let's look at the missing data.
+
+First is observing the numerical data to observe the list
+```{r}
+#options(max.print = 4000)
+#summary(train_full)
+#sum(is.na(train_full))
+```
+
+```{r}
+train_full_copy1 <- data.frame(df_simplified)
+missing1 <- data.frame(map(train_full_copy1, ~sum(is.na(.))))
+missing1 <- missing1[ , colSums(missing1 != 0, na.rm = TRUE) > 0]
+sum(missing1)
+
+train_full_copy2 <- data.frame(df_simplified)
+train_full_copy2[train_full_copy2 == -99] <- NA
+missing2 <- data.frame(map(train_full_copy2, ~sum(is.na(.))))
+missing2 <- missing2[ , colSums(missing2 != 0, na.rm = TRUE) > 0]
+sum(missing2)
+```
+
+It appears that there are 2 columns (BLEED_UNITS_TOT and casematch22) include missing value, in addition, there are another 65 columns encode missing value with "-99". In the training set, we have 29188 observations. We can set up a threshold, and if the NA counts of the column greater than it should be excluded from analysis. The rationale of considering -99 as missing value is because columns such as Height and weight.
+
+However, there are other parameters that should not be negative is negative: BMI, but it is not -99. Further looking into the data set, on can observe that BMI < 0 happens when there is at least 1 missing value appear in either HEIGHT or WEIGHT column, so if we are to look into BMI's influence to the variable of interests, the negative values shall be removed since those are inaccurate measurements. For the ease of coding, negative BMI will also be encoded as NA's in the following analysis.
+
+```{r}
+train_full_copy3 <- data.frame(train_full_copy2)
+train_full_copy3 <- train_full_copy3 %>% mutate(BMICategories = ifelse(is.na(HEIGHT) | is.na(WEIGHT), NA, BMICategories))
+train_full_copy3 <- train_full_copy3 %>% mutate(BMI = ifelse(is.na(BMICategories), NA, BMI))
+missing3 <- data.frame(map(train_full_copy3, ~sum(is.na(.))))
+missing3 <- missing3[ , colSums(missing3 != 0) > 0]
+sum(missing3)
+# 
+# 
+# train_full_copy3$BMI <- train_full_copy3[train_full_copy3$BMI < 0]
+# train_full_copy3$BMI <- train_full_copy3[train_full_copy3$BMI < 0]
+```
+
+
+## Random Forest with procedural/hospital information subset
+```{r}
+df1 <- data.frame(df_simplified)
+
+df1[df1 == "NULL"] <- NA
+df1[df1 == "Unknown"] <- NA
+df1[df1 == "N/A (bed-ridden or other medical issues)"] <- NA
+missing4 <- data.frame(map(df1, ~sum(is.na(.))))
+missing4 <- missing4[ , colSums(missing4 != 0, na.rm = TRUE) > 0]
+
+Other_Drop0 <- names(missing4)[which(missing4 > 5000, arr.ind=T)[, "col"]]
+
+df2 <- data.frame(train_full[, 78:107])
+df2[df2 == "NULL"] <- NA
+df2[df2 == "Unknown"] <- NA
+missing5 <- data.frame(map(df2, ~sum(is.na(.))))
+missing5 <- missing5[ , colSums(missing5 != 0, na.rm = TRUE) > 0]
+missing5 <- data.frame(t(missing5))
+
+# Columns to drop in Col 78-107
+# Other_Drop <- c('ETHNICITY_HISPANIC', 'OTHERCPT1', 'OTHERPROC2', 'OTHERPROC3', 'OTHERCPT3', 'OTHERCPT4',
+#                 'OTHERPROC5', 'CONCURR1', 'CONCPT1', 'CONCPT2', 'CONCURR3', 'CONCURR4', 'CONCPT4', 'CONCPT5',
+#                 'PODIAG', 'REOPERATION2', 'REOPOR2CPT1', 'REOPOR2ICD91', 'REOPERATION3', 'READMRELATED1',
+#                 'READMSUSPREASON1', 'UNPLANNEDREADMISSION2', 'READMRELATED2', 'READMISSION3', 'UNPLANNEDREADMISSION3',
+#                 'READMSUSPREASON3', 'READMRELICD93', 'PODIAG_OTHER10',  'ANESTHES_OTHER', 'READMSUSPREASON2')
+# All included in Other_Drop0
+
+df_simplified_1 = drop_cols(df_simplified, Other_Drop0)
+ncol(df_simplified_1)
+```
+
+```{r}
+# Columns inspected here include: 'SEX', 'RACE_NEW', 'HIP_PREOP_DELIRIUM', 'HIP_WBAT_POD1', 'HIP_POST_DELIRIUM'
+df3 <- data.frame(df_simplified_1[, c(
+  'SEX',
+  'RACE_NEW',
+  'HIP_PREOP_DELIRIUM',
+  'HIP_WBAT_POD1',
+  'HIP_POST_DELIRIUM',
+  'READMISSION1'
+  )])
+df3[df3 == "NULL"] <- NA
+df3[df3 == "Unknown"] <- NA
+df3[df3 == "N/A (bed-ridden or other medical issues)"] <- NA
+df3 <- df3 %>% drop_na()
+df3$READMISSION1[df3$READMISSION1 == 'Yes'] <- 1
+df3$READMISSION1[df3$READMISSION1 == 'No'] <- 0
+df3$SEX <- factor(df3$SEX)
+df3$RACE_NEW <- factor(df3$RACE_NEW)
+df3$HIP_PREOP_DELIRIUM <- factor(df3$HIP_PREOP_DELIRIUM)
+df3$HIP_WBAT_POD1 <- factor(df3$HIP_WBAT_POD1)
+df3$HIP_POST_DELIRIUM <- factor(df3$HIP_POST_DELIRIUM)
+df3$READMISSION1 <- factor(df3$READMISSION1)
+```
+
+```{r}
+
+sample = sample.split(df3$READMISSION1, SplitRatio = .75)
+train = subset(df3, sample == TRUE)
+test  = subset(df3, sample == FALSE)
+dim(train)
+dim(test)
+
+rf <- randomForest(
+  READMISSION1 ~ .,
+  data=train
+)
+
+pred = predict(rf, newdata=test[-6])
+cm = table(test[,6], pred)
+cm
+pred1 <- data.frame(pred)
+```
+From the RF result, it is initially considered that 'SEX', 'RACE_NEW', 'HIP_PREOP_DELIRIUM', 'HIP_WBAT_POD1', 'HIP_POST_DELIRIUM' are irrelevant parameters as well.
+
+##
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -24,22 +24,20 @@ library(naniar)
 # Each of us are saving our data locally (for now at least)
 # To call out the sav file, we need to use different directories.
 
-#hip_fracture_df = read_sav('../Analysis/Data/HipFractureQualityData.sav') # Bruno's Directory
-
-hip_fracture_df = read_sav('/Users/zhixiangyao/Desktop/Spring\ 2023/Intro\ BioMed\ Data\ Sci/Project/Data/HipFractureQualityData.sav') # Carl's Directory
+hip_fracture_df = read_sav('../Data/HipFractureQualityData.sav') # This dir appears to work for both Carl and Bruno, if Rutwik can also use this dir it'll be much easier
 ```
 
 
 ```{r cars}
-#first off lets get a summary of the data to see what is missing. We want to look more closely at the encoded columns (Starting at Gender = 1) since we would not expect NA's here
+# first off lets get a summary of the data to see what is missing. We want to look more closely at the encoded columns (Starting at Gender = 1) since we would not expect NA's here
 options(max.print = 4000)
 summary(hip_fracture_df)
 
-#it looks like there are no NA's being displayed - it may be mis- encoding them when we read in the data
+# it looks like there are no NA's being displayed - it may be mis- encoding them when we read in the data
 
 ```
 
-#Carl: It seems that the NA data are represented as -99
+Carl: It seems that the NA data are represented as -99
 
 
 
@@ -49,11 +47,6 @@ df <- hip_fracture_df[,!names(hip_fracture_df) %in% c("CASEID")]
 
 # Keep an original df if further operations on the df will be applied.
 df2 <- data.frame(df)
-AGE_hist <- ggplot(df2, aes(x=AGE)) +
-  geom_histogram(binwidth = 5) +
-  labs(title = "Distribution of age", x = "Age", y = "Density") +
-  theme(plot.title = element_text(hjust = 0.5))
-ggsave("AGE_Histogram.png", plot = AGE_hist)
 ```
 
 ```{r}
@@ -62,6 +55,15 @@ df4[df4 == -99] <- NA
 missing <- data.frame(map(df4, ~sum(is.na(.))))
 missing[missing == 0] <- NA
 missing <- missing[ , colSums(is.na(missing))==0]
+sum(missing)
+```
+
+```{r}
+AGE_hist <- ggplot(df2, aes(x=AGE)) +
+  geom_histogram(binwidth = 5) +
+  labs(title = "Distribution of age", x = "Age", y = "Density") +
+  theme(plot.title = element_text(hjust = 0.5))
+ggsave("AGE_Histogram.png", plot = AGE_hist)
 ```
 
 ```{r, echo = FALSE}
@@ -95,7 +97,8 @@ Race_bar <- ggplot(RACE_df, aes(x = Race, y = percentage, fill = Race)) +
   scale_y_continuous(labels=scales::percent) +
   labs(title="Race Distribution", y = "Percentage") +
   geom_text(aes(label = labels), nudge_y = 0.125, angle = -15) +
-  theme(axis.text.x = element_text(angle = -30, hjust = 0.5))
+  theme(axis.text.x = element_text(angle = -30, hjust = 0.5)) +
+  theme(plot.title = element_text(hjust = 0.5))
 ggsave("Race_Barchart.png", plot = Race_bar)
 ```
 
@@ -169,15 +172,35 @@ agg_df_srad <- setNames(aggregate(df2$SEX, by=list(df2$SEX,df2$RACE_NEW,df2$READ
 
 sex_race_read <- ggplot(agg_df_srad, aes(x = Sex, fill = Readmission))+
   geom_bar(mapping = aes(x = Sex, y = Counts, fill = Readmission), stat = "identity", position = "fill")+
-  facet_wrap(~Race, ncol = 3, nrow = 3, scales = 'free') +
-  labs(title="Infectious Complications of patients with differnt sex and age", x = "Sex", y = "Relative Proportion of Infectious Complications") +
+  facet_wrap(~Race, ncol = 3, nrow = 3, scales = 'free', labeller = label_wrap_gen(25)) +
+  labs(title="Readmission of patients with differnt sex and race", x = "Sex", y = "Relative Proportion of Readmission") +
   theme(plot.title = element_text(hjust = 0.5), strip.text = element_text(size=7))
 ggsave("readmit_sex+race.png", plot = sex_race_read)
 ```
 
+```{r}
+agg_df_srad30 <- setNames(aggregate(df2$SEX, by=list(df2$SEX,df2$RACE_NEW,df2$ReadmissionPost_119), FUN=length),
+                   c("Sex", "Race","Readmissionin30days","Counts"))
 
+sex_race_read30 <- ggplot(agg_df_srad30, aes(x = Sex, fill = Readmissionin30days))+
+  geom_bar(mapping = aes(x = Sex, y = Counts, fill = Readmissionin30days), stat = "identity", position = "fill")+
+  facet_wrap(~Race, ncol = 3, nrow = 3, scales = 'free', labeller = label_wrap_gen(25)) +
+  labs(title="30 days Readmission of patients with differnt sex and race", x = "Sex", y = "Relative Proportion of 30 days readmission") +
+  theme(plot.title = element_text(hjust = 0.5), strip.text = element_text(size=7))
+ggsave("readmit30_sex+race.png", plot = sex_race_read30)
+```
 
+```{r}
+agg_df_rad <- setNames(aggregate(df2$RACE_NEW, by=list(df2$RACE_NEW,df2$READMISSION1), FUN=length),
+                   c("Race","Readmission","Counts"))
 
+race_read <- ggplot(agg_df_rad, aes(x = Race, fill = Readmission))+
+  geom_bar(mapping = aes(x = Race, y = Counts, fill = Readmission), stat = "identity", position = "fill")+
+  labs(title="Readmissions of patients with differnt race", x = "Race", y = "Relative Proportion of Readmissions") +
+  theme(plot.title = element_text(hjust = 0.5), strip.text = element_text(size=7)) +
+  theme(axis.text.x = element_text(angle = -30, hjust = 0.5))
+ggsave("readmit_race.png", plot = race_read)
+```
 
 
 

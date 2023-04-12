@@ -1,0 +1,116 @@
+---
+title: "generate_local_datasets"
+author: "Bruno Valan"
+date: "2023-03-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(haven)
+library(dplyr)
+library(plyr)
+library(ggplot2)
+library(ggrepel)
+library(corrplot)
+library(patchwork)
+library(psych)
+library(tidyverse)
+library(gridExtra)
+library(naniar)
+library(caret)
+library(randomForest)
+require(caTools)
+
+```
+
+## R Markdown
+The goal of this file is to simplify our original data set. I will do this by 
+1) Going through all original and encoded columns and documenting where they came from if encoded 
+2) dropping all columnns that are irrelevant for this modelling task, contain the same information as another column or 
+4) I will split the data into training and test sets and save both 
+5) I will use the training set into create four smaller data frames with local features relating to certain characteristics, specifically
+  1) pre-operative patient health 
+  2) patient demographics 
+  3) post-operative health and complications
+  4) procedure information (including hospital information)
+
+```{r}
+#first I will read in the full data set 
+raw_data = read_sav('../Data/HipFractureQualityData.sav')
+
+```
+1. For clarity purposes we have stored the columns in vectors according to what type of information they are and why have decided to drop them. However, in a separate cell I will combine into one vector and drop all at once  
+
+```{r}
+#these are the columns that will cause leakage 
+cols_leakage_encoded = c('ReadmissionPost_117', 'Readmission2Post_1', 'Readmission2Post_2', 'Readmission2Post_3', 'Readmission3Post_4', 'Readmission3Post_5', 'Mortality', 'AnyAdverseEvent', 'ClaivenDindo', 'PostOpResidence30_36', 'PostOpResidence30_37', 'PostOpResidence30_38', 'PostOpResidence30_39', 'PostOpResidence30_40', 'PostOpResidence30_41', 'PostOpResidence30_42', 'PostOpResidence30_43')
+
+#some of these may have already been encoded but I don't think so. Also our un encoded response is being dropped here
+#dropped all days 
+cols_leakage_original = c("STILLINHOSP", "REOPERATION1", "REOPORCPT1", "REOPERATION2", "RETOR2PODAYS", "REOPOR2CPT1", "RETOR2RELATED", "REOPOR2ICD91", "REOPERATION3", "READMISSION1", "READMPODAYS1", "UNPLANNEDREADMISSION1", "READMRELATED1", "READMSUSPREASON1", "READMISSION2", "READMPODAYS2", "UNPLANNEDREADMISSION2", "READMRELATED2", "READMRELICD92", "READMISSION3","READMPODAYS3", "UNPLANNEDREADMISSION3", "READMRELATED3", "READMSUSPREASON3", "READMRELICD93" )
+
+
+#dropped BMI catagories quality metrics I did not understand, encoded missingness, 
+#dropped columns that were dummy encoded for a binary variable (re_oppost_115, Stroke_1)
+#dropped 3 level diabetes column (keep binary)
+#dropped post complication columns indicating indicating missing/no complication (WBAT 18/19)
+encoded_irrelevant <- c("MissingRaceStudy", "Age65", "QualityMetric", "QualityGreater2", "casematch22", "albuminmissing", 'MissingVariableInfo2', 'BMICategories', 'agemissing', 'HtMissing1', 'WtMissing1', 'LOSmissing', 'ReOPPost_115', 'DiabetesPre_33', 'DiabetesPre_34', 'DiabetesPre_35', 'Stroke_1', 'Ethnicity_12', 'Ethnicity_13', 'StrokePost_101', 'WBATPOD1_18', 'WBATPOD1_19', 'PreOpDelirium_3', 'PreOpMOBAID_9', 'DVTProphylaxisPost28_22', 'PostOpDelirium_27', 'PreOpMOBAID_9', 'PostOpMobAid_30', 'PostOpMobAid_32')
+
+#dropping columns that refer to day before complication (leakage/missingness) and days between pre-op labs and surgery (missingness/irrelevant)
+days_labs_comp <- c('DOTHSESHOCK', 'DOTHSYSEP',  "DPRNA", "DPRBUN", "DPRCREAT", "DPRALBUM", "DPRBILI", "DPRSGOT", "DPRALKPH", "DPRWBC", "DPRHCT", "DPRPLATE", "DPRPTT", "DPRPT", "DPRINR", "DSUPINFEC", "DWNDINFD","DORGSPCSSI", "DDEHIS", "DOUPNEUMO", "DREINTUB", "DPULEMBOL", "DFAILWEAN","DRENAINSF", "DOPRENAFL", "DURNINFEC", "DCNSCVA", "DCDARREST", "DCDMI", "DOTHBLEED", "DOTHDVT", "DOTHSYSEP", "DOTHSESHOCK", "DOPERTOD")
+
+#drop concurrent procedure information 
+original_concurrent_proc <- c("CONWRVU4","CONCURR5", "CONCPT5", "CONWRVU5", "OTHERWRVU1", "OTHERPROC2", "OTHERCPT2", "OTHERWRVU2", "OTHERPROC3", "OTHERCPT3", "OTHERWRVU3", "OTHERPROC4", "OTHERCPT4", "OTHERWRVU4", "OTHERPROC5", "OTHERCPT5", "OTHERWRVU5", "CONCURR1", "CONCPT1", "CONWRVU1", "CONCURR2", "CONCPT2", "CONWRVU2", "CONCURR3", "CONCPT3", "CONWRVU3", "CONCURR4", "OTHERPROC1", "OTHERCPT1",  "CONCPT4" ) 
+
+#other originals to drop
+original_drop <- c('CASEID','HIP_RES30D', 'PRNCPTX', 'ADMYR', 'SURGSPEC', 'READMSUSPREASON2', 'RETORRELATED', 'BLEED_UNITS_TOT', 'DOTHCDIFF', 'NOTHCDIFF', 'DOTHCDIFF', 'ANESTHES_OTHER', 'PODIAG_OTHER10', 'PODIAG_OTHER', 'WOUND_CLOSURE', 'DOPERTOD', 'PODIAGTX10', 'PODIAG10', 'PODIAGTX', 'PODIAG',  "RETORPODAYS", 'YRDEATH', 'HDISDT', 'EOL_WDCARE' )
+
+```
+## In the Below cell I will combine all the columns into one vector and drop all at once. 
+
+
+```{r}
+cols_drop = c('ReadmissionPost_117', 'Readmission2Post_1', 'Readmission2Post_2', 'Readmission2Post_3', 'Readmission3Post_4', 'Readmission3Post_5', 'Mortality', 'AnyAdverseEvent', 'ClaivenDindo', 'PostOpResidence30_36', 'PostOpResidence30_37', 'PostOpResidence30_38', 'PostOpResidence30_39', 'PostOpResidence30_40', 'PostOpResidence30_41', 'PostOpResidence30_42', 'PostOpResidence30_43',"STILLINHOSP", "REOPERATION1", "REOPORCPT1", "REOPERATION2", "RETOR2PODAYS", "REOPOR2CPT1", "RETOR2RELATED", "REOPOR2ICD91", "REOPERATION3", "READMISSION1", "READMPODAYS1", "UNPLANNEDREADMISSION1", "READMRELATED1", "READMSUSPREASON1", "READMISSION2", "READMPODAYS2", "UNPLANNEDREADMISSION2", "READMRELATED2", "READMRELICD92", "READMISSION3","READMPODAYS3", "UNPLANNEDREADMISSION3", "READMRELATED3", "READMSUSPREASON3", "READMRELICD93", "MissingRaceStudy", "Age65", "QualityMetric", "QualityGreater2", "casematch22", "albuminmissing", 'MissingVariableInfo2', 'BMICategories', 'agemissing', 'HtMissing1', 'WtMissing1', 'LOSmissing', 'ReOPPost_115', 'DiabetesPre_33', 'DiabetesPre_34', 'DiabetesPre_35', 'Stroke_1', 'Ethnicity_12', 'Ethnicity_13', 'StrokePost_101', 'WBATPOD1_19', 'PreOpDelirium_3', 'PreOpMOBAID_9', 'DVTProphylaxisPost28_22', 'PostOpDelirium_27', 'PreOpMOBAID_9', 'PostOpMobAid_30', 'PostOpMobAid_32', 'DOTHSESHOCK', 'DOTHSYSEP',  "DPRNA", "DPRBUN", "DPRCREAT", "DPRALBUM", "DPRBILI", "DPRSGOT", "DPRALKPH", "DPRWBC", "DPRHCT", "DPRPLATE", "DPRPTT", "DPRPT", "DPRINR", "DSUPINFEC", "DWNDINFD","DORGSPCSSI", "DDEHIS", "DOUPNEUMO", "DREINTUB", "DPULEMBOL", "DFAILWEAN","DRENAINSF", "DOPRENAFL", "DURNINFEC", "DCNSCVA", "DCDARREST", "DCDMI", "DOTHBLEED", "DOTHDVT", "DOTHSYSEP", "DOTHSESHOCK", "DOPERTOD", "CONWRVU4","CONCURR5", "CONCPT5", "CONWRVU5", "OTHERWRVU1", "OTHERPROC2", "OTHERCPT2", "OTHERWRVU2", "OTHERPROC3", "OTHERCPT3", "OTHERWRVU3", "OTHERPROC4", "OTHERCPT4", "OTHERWRVU4", "OTHERPROC5", "OTHERCPT5", "OTHERWRVU5", "CONCURR1", "CONCPT1", "CONWRVU1", "CONCURR2", "CONCPT2", "CONWRVU2", "CONCURR3", "CONCPT3", "CONWRVU3", "CONCURR4", "OTHERPROC1", "OTHERCPT1",  "CONCPT4", 'CASEID','HIP_RES30D', 'PRNCPTX', 'ADMYR', 'SURGSPEC', 'READMSUSPREASON2', 'RETORRELATED', 'BLEED_UNITS_TOT', 'DOTHCDIFF', 'NOTHCDIFF', 'DOTHCDIFF', 'ANESTHES_OTHER', 'PODIAG_OTHER10', 'PODIAG_OTHER', 'WOUND_CLOSURE', 'DOPERTOD', 'PODIAGTX10', 'PODIAG10', 'PODIAGTX', 'PODIAG',  "RETORPODAYS", 'YRDEATH', 'HDISDT', 'EOL_WDCARE', 'PropensityScore22', 'PRALBUM', 'PRBILI', 'PRSGOT', 'PRALKPH', 'PRPTT', 'PRINR', 'PRPT', 'WNDCLAS', 'MORTPROB', 'MORBPROB')
+
+length(cols_drop)
+
+df_simplified = select(raw_data, -cols_drop)
+
+```
+
+Now that we have dropped the columns we are not interested in we can clean up some naming, create our train and test splits and save them to csv for exploration and modelling
+
+The output of this file is the orignal data frame with 169 columns dropped, leaving us with 219 total columns
+Further Description: 
+Encoded Columns: total of 113 columns coming from 64 different variables 
+Original Categorical: 7 columns that still need to be encoded 
+Original Numeric: 12 columns that still need to be examined for missingness and scaled
+
+```{r}
+#rename response variable and add it to the end 
+df_simplified$READMISSION30D <- df_simplified$ReadmissionPost_119
+df_simplified$ReadmissionPost_119 <- NULL
+```
+
+
+```{r}
+# split the training and test sets 80/20. We want some extra in our training for validation. Stratify Y due to class imbalance
+set.seed(34)
+splits <- createDataPartition(y = df_simplified$'READMISSION30D', p = 0.8, list = FALSE)
+train_full = df_simplified[splits,]
+test_data = df_simplified[-splits, ]
+train_full <- as.data.frame(train_full)
+test_data <- as.data.frame(test_data)
+```
+
+
+
+```{r}
+write_csv(train_full, '../hip_fracture_training.csv')
+write_csv(test_data, '../hip_fracture_test.csv')
+
+```
+
+

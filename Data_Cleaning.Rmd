@@ -108,6 +108,14 @@ test_data <- as.data.frame(test_data)
 
 
 ```{r}
+dim(train_full)
+dim(test_data)
+```
+
+
+
+
+```{r}
 write_csv(train_full, '../hip_fracture_training.csv')
 write_csv(test_data, '../hip_fracture_test.csv')
 
